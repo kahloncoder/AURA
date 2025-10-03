@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA - Multi-Agent Voice Assistant</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 900px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .room-selection {
+            display: block;
+        }
+
+        .room-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .room-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .room-card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .room-card h3 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.3em;
+        }
+
+        .room-card p {
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .room-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .chat-interface {
+            display: none;
+        }
+
+        .session-info {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-info h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .timer {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #764ba2;
+        }
+
+        .conversation {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.assistant {
+            text-align: left;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 70%;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-bubble {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            text-align: center;
+        }
+
+        .record-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+        }
+
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .record-icon {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .record-btn.recording .record-icon {
+            border-radius: 8px;
+            width: 30px;
+            height: 30px;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.transcribing {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.processing {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .status.synthesizing {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .end-session-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            margin-left: 10px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .agent-indicator {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 AURA</h1>
+            <p>Multi-Agent Voice Assistant</p>
+        </div>
+
+        <div class="content">
+            <!-- Room Selection -->
+            <div class="room-selection" id="roomSelection">
+                <div id="roomsList"></div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn" id="startBtn" disabled>Start Session</button>
+                </div>
+            </div>
+
+            <!-- Chat Interface -->
+            <div class="chat-interface" id="chatInterface">
+                <div class="session-info">
+                    <div>
+                        <h3 id="roomName">Current Session</h3>
+                        <div class="agent-indicator" id="agentsInfo"></div>
+                    </div>
+                    <div class="timer" id="timer">00:00</div>
+                </div>
+
+                <div class="error" id="errorMsg"></div>
+                <div class="status" id="statusMsg"></div>
+
+                <div class="conversation" id="conversation"></div>
+
+                <div class="controls">
+                    <button class="record-btn" id="recordBtn">
+                        <div class="record-icon"></div>
+                    </button>
+                    <p id="recordHint">Click to start recording</p>
+                    <div style="margin-top: 20px;">
+                        <button class="btn end-session-btn" id="endSessionBtn">End Session</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let selectedRoomIndex = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let sessionActive = false;
+        let timerInterval = null;
+
+        // Load rooms
+        fetch('/api/rooms')
+            .then(res => res.json())
+            .then(data => {
+                const roomsList = document.getElementById('roomsList');
+                data.rooms.forEach((room, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'room-card';
+                    card.innerHTML = `
+                        <h3>${room.name}</h3>
+                        <p>${room.description}</p>
+                        <div class="room-meta">
+                            <span>⏱️ ${room.session_duration_minutes} minutes</span>
+                            <span>🤖 ${room.agents.length} agents</span>
+                        </div>
+                    `;
+                    card.onclick = () => selectRoom(index, card);
+                    roomsList.appendChild(card);
+                });
+            })
+            .catch(err => showError('Failed to load rooms: ' + err.message));
+
+        function selectRoom(index, card) {
+            document.querySelectorAll('.room-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedRoomIndex = index;
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            if (selectedRoomIndex !== null) {
+                socket.emit('start_session', { room_index: selectedRoomIndex });
+            }
+        });
+
+        socket.on('session_started', (data) => {
+            sessionActive = true;
+            document.getElementById('roomSelection').classList.add('hidden');
+            document.getElementById('chatInterface').style.display = 'block';
+            document.getElementById('roomName').textContent = data.room;
+            document.getElementById('agentsInfo').textContent = `Agents: ${data.agents.join(', ')}`;
+            
+            addMessage('assistant', data.greeting);
+            startTimer(data.duration * 60);
+        });
+
+        function startTimer(seconds) {
+            let remaining = seconds;
+            updateTimerDisplay(remaining);
+            
+            timerInterval = setInterval(() => {
+                remaining--;
+                updateTimerDisplay(remaining);
+                
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    endSession();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            document.getElementById('timer').textContent = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Audio recording
+        document.getElementById('recordBtn').addEventListener('click', async () => {
+            if (!sessionActive) return;
+
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        processAudio(audioBlob);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    document.getElementById('recordBtn').classList.add('recording');
+                    document.getElementById('recordHint').textContent = 'Recording... Click to stop';
+                } catch (err) {
+                    showError('Microphone access denied: ' + err.message);
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                document.getElementById('recordBtn').classList.remove('recording');
+                document.getElementById('recordHint').textContent = 'Processing...';
+            }
+        });
+
+        function processAudio(audioBlob) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64Audio = reader.result.split(',')[1];
+                socket.emit('process_audio', { audio: base64Audio });
+            };
+            reader.readAsDataURL(audioBlob);
+        }
+
+        socket.on('status', (data) => {
+            const statusMsg = document.getElementById('statusMsg');
+            statusMsg.textContent = data.message;
+            statusMsg.className = `status show ${data.type}`;
+        });
+
+        socket.on('transcription', (data) => {
+            addMessage('user', data.text);
+        });
+
+        socket.on('response', (data) => {
+            document.getElementById('statusMsg').classList.remove('show');
+            document.getElementById('recordHint').textContent = 'Click to start recording';
+            
+            addMessage('assistant', data.text);
+            
+            if (data.audio) {
+                playAudio(data.audio);
+            }
+        });
+
+        function addMessage(role, text) {
+            const conversation = document.getElementById('conversation');
+            const message = document.createElement('div');
+            message.className = `message ${role}`;
+            message.innerHTML = `<div class="message-bubble">${text}</div>`;
+            conversation.appendChild(message);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        function playAudio(base64Audio) {
+            const audio = new Audio('data:audio/wav;base64,' + base64Audio);
+            audio.play();
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = message;
+            errorMsg.classList.add('show');
+            setTimeout(() => errorMsg.classList.remove('show'), 5000);
+        }
+
+        socket.on('error', (data) => {
+            showError(data.message);
+            document.getElementById('recordHint').textContent = 'Click to start recording';
+        });
+
+        document.getElementById('endSessionBtn').addEventListener('click', endSession);
+
+        function endSession() {
+            if (sessionActive) {
+                socket.emit('end_session');
+                sessionActive = false;
+                if (timerInterval) clearInterval(timerInterval);
+                alert('Session ended. Thank you for using AURA!');
+                location.reload();
+            }
+        }
+
+        socket.on('session_expired', () => {
+            alert('Session time limit reached!');
+            endSession();
+        });
+    </script>
+</body>
+</html>
