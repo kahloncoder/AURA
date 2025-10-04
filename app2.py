@@ -147,7 +147,7 @@ class CerebrasHandler:
         self.api_key = api_key
         self.base_url = "https://api.cerebras.ai/v1/chat/completions"
         # Use faster model to avoid rate limits
-        self.model = "llama3.1-8b"  # Faster, less likely to hit rate limits
+        self.model = "llama-3.3-70b"  # Faster, less likely to hit rate limits
         self.last_request_time = 0
         self.min_request_interval = 1.0  # Minimum 1 second between requests
     

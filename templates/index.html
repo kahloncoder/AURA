@@ -225,8 +225,10 @@
       currentAgents = agents;
       
       agents.forEach(agentName => {
-        const style = getAgentStyle(agentName);
-        const emoji = getAgentEmoji(agentName);
+        // Extract the role part before any numbers or special characters
+        const baseRole = agentName.split(/[\d\W]/).filter(Boolean)[0] || agentName;
+        const style = getAgentStyle(baseRole);
+        const emoji = getAgentEmoji(baseRole);
         const agentDiv = document.createElement('div');
         agentDiv.className = `agent-avatar ${style.bg} ${style.text} px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 shadow-lg`;
         agentDiv.innerHTML = `<span>${emoji}</span><span>${agentName}</span>`;
@@ -301,11 +303,13 @@
     }
 
     // Socket events
-    socket.on("session_started", data => {
+      socket.on("session_started", data => {
       console.log('Session started:', data);
       scenarioScreen.classList.add("hidden");
       conversationScreen.classList.remove("hidden");
-      displayAgents(data.agents);
+      // Extract agent names from the agents array
+      const agentNames = data.agents.map(agent => agent.name);
+      displayAgents(agentNames);
       addMessage("System", data.greeting, true);
       updateStatus("Ready - Hold the microphone to speak");
       
@@ -315,9 +319,7 @@
         sessionEndTime = Date.now() + (data.duration * 60 * 1000);
         updateTimerDisplay();
       }
-    });
-
-    function updateTimerDisplay() {
+    });    function updateTimerDisplay() {
       if (!sessionEndTime) return;
       const remaining = Math.max(0, Math.floor((sessionEndTime - Date.now()) / 1000));
       updateTimer(remaining);
