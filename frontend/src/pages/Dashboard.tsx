@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sparkles, LogOut, Plus, Clock, History } from "lucide-react";
 import { toast } from "sonner";
-import { roomsApi } from "@/services/api";
+import { roomsApi } from "@/services/api"; // --- MODIFIED: Import the API service ---
 
 interface Room {
   name: string;
@@ -37,10 +37,10 @@ const Dashboard = () => {
     fetchRooms();
   }, [navigate]);
 
+  // --- MODIFIED: This function now fetches rooms from the backend ---
   const fetchRooms = async () => {
     try {
       setLoading(true);
-
       // Call the backend API to get the list of rooms
       const data = await roomsApi.getRooms();
       
@@ -92,9 +92,6 @@ const Dashboard = () => {
               <span className="text-sm text-muted-foreground hidden sm:block">
                 Welcome, {user?.name || user?.email}
               </span>
-              <Button onClick={() => navigate("/blog")} variant="ghost" size="sm">
-                Blog
-              </Button>
               <Button onClick={() => navigate("/conversations")} variant="ghost" size="sm">
                 <History className="w-4 h-4 mr-2" />
                 History
@@ -110,8 +107,7 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
-        <div className="mb-12">
+        <div className="mb-12 text-center">
           <h1 className="text-4xl font-bold mb-3">
             Choose Your <span className="gradient-text">Conversation Room</span>
           </h1>
@@ -120,27 +116,22 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Rooms Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {rooms.map((room, idx) => (
             <Card
               key={idx}
-              className="p-6 bg-card border-border/50 hover:border-primary/50 transition-all hover:shadow-elegant cursor-pointer group"
+              className="p-6 bg-card border-border/50 hover:border-primary/50 transition-all hover:shadow-elegant cursor-pointer group flex flex-col"
               onClick={() => startSession(room)}
             >
-              <div className="mb-4">
+              <div className="flex-grow">
                 <h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
                   {room.name}
                 </h3>
                 <p className="text-muted-foreground mb-4">{room.description}</p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                   <Clock className="w-4 h-4" />
                   <span>{room.session_duration_minutes} minute session</span>
                 </div>
-
                 <div className="flex flex-wrap gap-2">
                   {room.agents.map((agent, i) => (
                     <span
@@ -152,14 +143,12 @@ const Dashboard = () => {
                   ))}
                 </div>
               </div>
-
               <Button className="w-full mt-6 bg-gradient-primary hover:opacity-90 transition-opacity">
                 Start Session
               </Button>
             </Card>
           ))}
 
-          {/* Create Custom Room Card */}
           <Card className="p-6 bg-card border-border/50 border-dashed hover:border-primary/50 transition-all cursor-pointer group flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
               <Plus className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -168,34 +157,11 @@ const Dashboard = () => {
             <p className="text-muted-foreground text-sm mb-4">
               Design your own multi-agent scenario
             </p>
-            <Button variant="outline" className="border-border/50">
+            <Button variant="outline" className="border-border/50" disabled>
               Coming Soon
             </Button>
           </Card>
         </div>
-
-        {/* Info Section */}
-        <Card className="p-6 bg-card/50 border-border/50">
-          <h3 className="text-lg font-semibold mb-3">How to use AURA effectively:</h3>
-          <ul className="space-y-2 text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">•</span>
-              <span>Press and hold the microphone button while speaking your question</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">•</span>
-              <span>Be specific and clear - the agents work best with focused questions</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">•</span>
-              <span>Each session maintains context, so you can ask follow-up questions</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">•</span>
-              <span>Three specialized agents will process your input sequentially for comprehensive insights</span>
-            </li>
-          </ul>
-        </Card>
       </div>
     </div>
   );

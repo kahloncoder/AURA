@@ -8,7 +8,7 @@ import base64
 import time
 import subprocess
 import requests
-from deepgram import DeepgramClient, PrerecordedOptions, SpeakOptions
+from deepgram import DeepgramClient # Reverted to the correct import for the older SDK
 from config import *
 
 
@@ -28,7 +28,6 @@ class AudioHandler:
             audio_bytes = base64.b64decode(audio_base64)
             tmp_in = filename + ".tmp"
 
-            # Write raw input
             with open(tmp_in, "wb") as f:
                 f.write(audio_bytes)
 
@@ -40,15 +39,14 @@ class AudioHandler:
                     cmd += ["-f", input_format]
                 cmd += [
                     "-i", tmp_in,
-                    "-ac", "1",                    # mono
-                    "-ar", str(SAMPLE_RATE),       # 16kHz
-                    "-sample_fmt", "s16",          # 16-bit PCM
+                    "-ac", "1",
+                    "-ar", str(SAMPLE_RATE),
+                    "-sample_fmt", "s16",
                     "-f", "wav",
                     filename
                 ]
                 return subprocess.run(cmd, capture_output=True)
 
-            # Try WebM first, then OGG
             result = run_ffmpeg("webm")
             if result.returncode != 0:
                 print("⚠️ WebM decode failed, trying OGG...")
@@ -73,9 +71,8 @@ class AudioHandler:
                 pass
 
 
-
 # ============================================================================
-# DEEPGRAM HANDLER
+# DEEPGRAM HANDLER (Reverted to be compatible with deepgram-sdk==3.5.0)
 # ============================================================================
 
 class DeepgramHandler:
@@ -87,12 +84,6 @@ class DeepgramHandler:
     def transcribe(self, audio_file):
         """
         Convert speech to text
-        
-        Args:
-            audio_file: Path to WAV file
-            
-        Returns:
-            str: Transcribed text or None
         """
         try:
             with open(audio_file, 'rb') as f:
@@ -100,79 +91,49 @@ class DeepgramHandler:
             
             print(f"🎤 Transcribing {len(buffer)} bytes...")
             
-            options = PrerecordedOptions(
-                model="nova-2",
-                smart_format=True,
-                language="en",
-                encoding=AUDIO_FORMAT,
-                sample_rate=SAMPLE_RATE
-            )
+            # Using a dictionary for options, compatible with the older SDK
+            options = {
+                "smart_format": True,
+                "model": "nova-2",
+                "language": "en"
+            }
 
-            response = self.client.listen.rest.v('1').transcribe_file(
+            response = self.client.listen.prerecorded.v("1").transcribe_file(
                 {'buffer': buffer}, options
             )
-            response_dict = response.to_dict()
-            # >>> ADD THIS DEBUGGING BLOCK <<<
-            import json
-            print("\n--- RAW DEEPGRAM RESPONSE ---")
-            print(json.dumps(response_dict, indent=2))
-            print("-----------------------------\n")
-
-            # Extract transcript
-            if (response_dict and 
-                response_dict.get('results') and
-                response_dict['results'].get('channels') and
-                len(response_dict['results']['channels']) > 0):
-                
-                alternatives = response_dict['results']['channels'][0].get('alternatives', [])
-                if alternatives and len(alternatives) > 0:
-                    transcript = alternatives[0].get('transcript', '')
-                    if transcript:
-                        print(f"✅ Transcription: {transcript}")
-                        return transcript.strip()
+            
+            # Accessing the response as a dictionary
+            transcript = response['results']['channels'][0]['alternatives'][0]['transcript']
+            if transcript:
+                print(f"✅ Transcription: {transcript}")
+                return transcript.strip()
             
             print("⚠️ No transcription returned")
             return None
         
-        # Replace the existing except block in the transcribe method
-
         except Exception as e:
-            # ======================================================
-            # >>> USE THIS MORE DETAILED EXCEPTION BLOCK <<<
-            import traceback
-            print(f"\n❌❌❌ DEEPGRAM TRANSCRIPTION ERROR ❌❌❌")
-            print(f"Error Type: {type(e).__name__}")
-            print(f"Error Details: {e}")
-            print("--- Full Traceback ---")
-            print(traceback.format_exc())
-            print("❌❌❌ END OF ERROR ❌❌❌\n")
-            # ======================================================
+            print(f"❌ Transcription error: {e}")
             return None
     
     def synthesize(self, text, voice):
         """
         Convert text to speech
-        
-        Args:
-            text: Text to synthesize
-            voice: Deepgram voice name
-            
-        Returns:
-            str: Base64 encoded audio or None
         """
         try:
             print(f"🔊 Synthesizing with {voice}: '{text[:50]}...'")
             
-            options = SpeakOptions(
-                model=voice,
-                encoding=AUDIO_FORMAT,
-                container=AUDIO_CONTAINER,
-                sample_rate=SAMPLE_RATE
-            )
+            options = {
+                "model": voice,
+                "encoding": AUDIO_FORMAT,
+                "container": AUDIO_CONTAINER,
+                "sample_rate": SAMPLE_RATE
+            }
             
-            response = self.client.speak.rest.v("1").stream_memory(
+            response = self.client.speak.v("1").stream(
                 {"text": text}, options
             )
+            
+            # --- FIX IS HERE: Changed response.get('stream') to response.stream ---
             audio_data = response.stream.read()
             
             print(f"✅ TTS generated: {len(audio_data)} bytes")
@@ -197,16 +158,9 @@ class CerebrasHandler:
     def chat(self, messages):
         """
         Get LLM response with automatic retry
-        
-        Args:
-            messages: List of message dicts [{role, content}]
-            
-        Returns:
-            str: LLM response or None
         """
         for attempt in range(MAX_RETRIES):
             try:
-                # Rate limiting
                 elapsed = time.time() - self.last_request_time
                 if elapsed < MIN_REQUEST_INTERVAL:
                     time.sleep(MIN_REQUEST_INTERVAL - elapsed)

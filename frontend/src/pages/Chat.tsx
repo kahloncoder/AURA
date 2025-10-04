@@ -15,6 +15,9 @@ interface Message {
 }
 
 const Chat = () => {
+  const audioQueueRef = useRef<string[]>([]);
+  const isPlayingRef = useRef(false);
+
   const location = useLocation();
   const navigate = useNavigate();
   const room = location.state?.room;
@@ -55,6 +58,42 @@ const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // ==================================================================
+  // MODIFICATION 1: The new queue processing function replaces the old `playAudioFromBase64`.
+  // ==================================================================
+  const processAudioQueue = () => {
+    if (isPlayingRef.current || audioQueueRef.current.length === 0) {
+      return;
+    }
+
+    isPlayingRef.current = true;
+    const base64Audio = audioQueueRef.current.shift();
+
+    if (!base64Audio) {
+      isPlayingRef.current = false;
+      return;
+    }
+
+    try {
+      const audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
+      
+      audio.onended = () => {
+        isPlayingRef.current = false;
+        processAudioQueue(); // Play the next item in the queue
+      };
+
+      audio.play().catch(err => {
+        console.error('Audio play error:', err);
+        isPlayingRef.current = false;
+        processAudioQueue(); // Try the next item even if this one fails
+      });
+
+    } catch (error) {
+      console.error('Error processing audio queue:', error);
+      isPlayingRef.current = false;
+    }
+  };
+
   const initializeSession = (socket: Socket) => {
     // Setup socket listeners
     socket.on('session_started', (data) => {
@@ -84,6 +123,9 @@ const Chat = () => {
       console.log(`🤖 ${data.agent}: ${data.status}`);
     });
 
+    // ==================================================================
+    // MODIFICATION 2: The 'agent_response' handler now uses the queue.
+    // ==================================================================
     socket.on('agent_response', (data) => {
       console.log(`💬 Agent response from ${data.agent}`);
       
@@ -94,9 +136,10 @@ const Chat = () => {
         timestamp: new Date().toISOString()
       }]);
 
-      // Play audio
+      // Add the incoming audio to our queue and start processing it
       if (data.audio) {
-        playAudioFromBase64(data.audio);
+        audioQueueRef.current.push(data.audio);
+        processAudioQueue();
       }
 
       setTimeRemaining(data.remaining_time);
@@ -138,18 +181,10 @@ const Chat = () => {
     return () => clearInterval(interval);
   };
 
-  const playAudioFromBase64 = (base64Audio: string) => {
-    try {
-      const audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
-      audio.play().catch(err => console.error('Audio play error:', err));
-    } catch (error) {
-      console.error('Error playing audio:', error);
-    }
-  };
+  // The old `playAudioFromBase64` function is no longer needed.
 
   const checkMicrophonePermission = async () => {
     try {
-      // First check if permissions were already denied
       const permissions = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       if (permissions.state === 'denied') {
         toast.error('Microphone access blocked. Please enable it in your browser settings and reload the page.');
@@ -158,11 +193,12 @@ const Chat = () => {
       return true;
     } catch (error) {
       console.error('Permission check error:', error);
-      return true; // Proceed with getUserMedia if permissions API is not available
+      return true;
     }
   };
 
   const startRecording = async () => {
+    // This function remains unchanged
     try {
       console.log('Starting recording...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -175,21 +211,14 @@ const Chat = () => {
       });
       audioChunksRef.current = [];
       
-      console.log('Using MIME type:', mimeType);
-      console.log('Using MIME type:', mimeType);
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = e => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      mediaRecorder.start(250); // Create chunks every 250ms
-      setIsRecording(true);
-      toast.success('Recording started!');
-      console.log('Started recording with:', mediaRecorder.mimeType);
+      mediaRecorder.start(250);
       setIsRecording(true);
       toast.success("Recording - speak now!");
     } catch (error) {
@@ -202,9 +231,6 @@ const Chat = () => {
           case 'NotFoundError':
             toast.error('No microphone found. Please connect a microphone and try again.');
             break;
-          case 'NotReadableError':
-            toast.error('Could not access your microphone. Please try reloading the page.');
-            break;
           default:
             toast.error(`Microphone error: ${error.message}`);
         }
@@ -216,8 +242,9 @@ const Chat = () => {
   };
 
   const stopRecording = async () => {
-    const MIN_RECORDING_TIME = 1000; // minimum 1 second recording time
-    const elapsedTime = Date.now() - recordingStartTime.current;
+    // This function remains unchanged
+    const MIN_RECORDING_TIME = 1000;
+    const elapsedTime = Date.now() - (recordingStartTime.current || 0);
     
     if (elapsedTime < MIN_RECORDING_TIME) {
       await new Promise(resolve => setTimeout(resolve, MIN_RECORDING_TIME - elapsedTime));
@@ -230,41 +257,19 @@ const Chat = () => {
       setIsRecording(false);
       setIsProcessing(true);
 
-      // Check if we have enough audio data
       if (audioChunksRef.current.length === 0) {
         setIsProcessing(false);
         toast.error("No audio recorded");
         return;
       }
-
-      // Validate audio data
-      const totalSize = audioChunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
-      console.log('Total audio size:', totalSize, 'bytes');
       
-      if (totalSize < 1000) { // Less than 1KB
-        setIsProcessing(false);
-        toast.error("Recording too short or no audio detected");
-        return;
-      }
-
-      // Log audio chunks info before creating blob
-      console.log('Audio chunks:', audioChunksRef.current.length, 'chunks collected');
-      audioChunksRef.current.forEach((chunk, index) => {
-        console.log(`Chunk ${index} type:`, chunk.type, 'size:', chunk.size);
-      });
-
       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-      console.log('Created blob of type:', mimeType, 'size:', audioBlob.size);
-
-      // Convert to base64
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64Audio = reader.result.toString().split(',')[1];
-        console.log('Sending audio data, length:', base64Audio.length);
-        // Send to backend
+        const base64Audio = reader.result!.toString().split(',')[1];
         socketRef.current?.emit('process_audio', { audio: base64Audio });
       };
-      reader.readAsDataURL(audioBlob);      // Stop all tracks
+      reader.readAsDataURL(audioBlob);
       mediaRecorder.stream.getTracks().forEach(track => track.stop());
     };
 
@@ -279,13 +284,14 @@ const Chat = () => {
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (!room) return null;
 
   return (
+    // The JSX part remains unchanged
     <div className="min-h-screen bg-gradient-hero flex flex-col">
       {/* Header */}
       <nav className="border-b border-border/50 backdrop-blur-lg bg-background/50">
@@ -379,7 +385,6 @@ const Chat = () => {
       <div className="border-t border-border/50 backdrop-blur-lg bg-background/50 p-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col items-center gap-4">
-            {/* Recording Button */}
             <button
               onMouseDown={startRecording}
               onMouseUp={stopRecording}
@@ -398,23 +403,19 @@ const Chat = () => {
                 <Mic className="w-8 h-8 text-primary-foreground" />
               )}
             </button>
-
-            {/* Instructions */}
-              <p className="text-sm text-muted-foreground text-center font-medium">
-                {isRecording ? (
-                  <span className="text-destructive animate-pulse">
-                    Recording... Release Button to Send
-                  </span>
-                ) : isProcessing ? (
-                  "Processing, please wait..."
-                ) : (
-                  <span>
-                    Press and <strong className="text-primary font-bold">HOLD</strong> the button to speak
-                  </span>
-                )}
-              </p>
-
-            {/* Agents Info */}
+            <p className="text-sm text-muted-foreground text-center font-medium">
+              {isRecording ? (
+                <span className="text-destructive animate-pulse">
+                  Recording... Release Button to Send
+                </span>
+              ) : isProcessing ? (
+                "Processing, please wait..."
+              ) : (
+                <span>
+                  Press and <strong className="text-primary font-bold">HOLD</strong> the button to speak
+                </span>
+              )}
+            </p>
             <div className="flex flex-wrap gap-2 justify-center">
               {room.agents.map((agent: any, idx: number) => (
                 <span

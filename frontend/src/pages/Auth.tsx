@@ -15,30 +15,28 @@ const Auth = () => {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // --- REVERTED: Using the original placeholder handleSubmit logic ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // TODO: Replace with actual MongoDB authentication
-    // For now, simulate API call
+    // Simulate API call and save a mock user to localStorage
     setTimeout(() => {
       if (isLogin) {
-        // Simulate login
         if (email && password) {
           toast.success("Welcome back!");
-          localStorage.setItem("aura_user", JSON.stringify({ email, name: "User" }));
+          localStorage.setItem("aura_user", JSON.stringify({ email, name: name || "Demo User" }));
           navigate("/dashboard");
         } else {
-          toast.error("Please enter valid credentials");
+          toast.error("Please enter your credentials.");
         }
       } else {
-        // Simulate signup
         if (email && password && name) {
           toast.success("Account created successfully!");
           localStorage.setItem("aura_user", JSON.stringify({ email, name }));
           navigate("/dashboard");
         } else {
-          toast.error("Please fill all fields");
+          toast.error("Please fill all fields.");
         }
       }
       setLoading(false);
@@ -50,7 +48,6 @@ const Auth = () => {
       <div className="absolute inset-0 bg-gradient-glow opacity-20 blur-3xl" />
       
       <div className="w-full max-w-md relative z-10">
-        {/* Back Button */}
         <Button
           variant="ghost"
           onClick={() => navigate("/")}
@@ -60,9 +57,7 @@ const Auth = () => {
           Back to Home
         </Button>
 
-        {/* Auth Card */}
         <Card className="p-8 bg-card border-border/50 shadow-elegant">
-          {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-8">
             <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-primary-foreground" />
@@ -70,7 +65,6 @@ const Auth = () => {
             <span className="text-2xl font-bold gradient-text">AURA</span>
           </div>
 
-          {/* Title */}
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-2">
               {isLogin ? "Welcome Back" : "Create Account"}
@@ -82,7 +76,6 @@ const Auth = () => {
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div className="space-y-2">
@@ -134,25 +127,16 @@ const Auth = () => {
             </Button>
           </form>
 
-          {/* Toggle */}
           <div className="mt-6 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               {isLogin ? "Don't have an account? " : "Already have an account? "}
               <span className="text-primary font-semibold">
                 {isLogin ? "Sign Up" : "Sign In"}
               </span>
             </button>
-          </div>
-
-          {/* Note */}
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground text-center">
-              <strong className="text-foreground">Note:</strong> Authentication will be connected to MongoDB 
-              for persistent user data storage.
-            </p>
           </div>
         </Card>
       </div>

@@ -4,14 +4,21 @@ Main Flask application with modular structure
 """
 
 import json
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, jsonify, request
 from flask_socketio import SocketIO
 from flask_cors import CORS
+from bson import ObjectId # <-- ADDED: Needed to handle MongoDB IDs
 
 # Import configurations and modules
 from config import *
 from handlers import initialize_handlers, deepgram_client, cerebras_handler
 from socket_events import register_socket_events
+from database import db 
+
+import jwt
+from datetime import datetime, timedelta, timezone
+from user_model import create_user, check_password
+
 
 # Initialize handlers before creating socket events
 initialize_handlers()
@@ -40,9 +47,6 @@ socketio = SocketIO(
 def index():
     return {"message": "AURA Backend running!"}
 
-    """Serve main web interface"""
-    # return render_template('index.html')
-
 
 @app.route('/api/rooms', methods=['GET'])
 def get_rooms():
@@ -51,7 +55,6 @@ def get_rooms():
         with open(ROOMS_CONFIG_PATH, 'r', encoding='utf-8') as f:
             rooms_data = json.load(f)
         
-        # Validate voice assignments
         for room in rooms_data.get('rooms', []):
             for idx, agent in enumerate(room.get('agents', [])):
                 voice = agent.get('voice', '')
@@ -63,29 +66,114 @@ def get_rooms():
     except Exception as e:
         print(f"❌ Error loading rooms: {e}")
         return jsonify({"error": str(e)}), 500
+    
+# ============================================================================
+# ---   AUTHENTICATION ROUTES ---
+# ============================================================================
 
+@app.route('/api/auth/register', methods=['POST'])
+def register_user():
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            return jsonify({"error": "Email and password are required"}), 400
+
+        user_id = create_user(email, password)
+        return jsonify({"message": "User created successfully", "userId": str(user_id)}), 201
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409 # 409 Conflict for existing user
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+
+@app.route('/api/auth/login', methods=['POST'])
+def login_user():
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            return jsonify({"error": "Email and password are required"}), 400
+
+        user = db.users.find_one({"email": email})
+
+        if not user or not check_password(user['password'], password):
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        # Create the token
+        payload = {
+            'sub': str(user['_id']), # Subject (the user's ID)
+            'iat': datetime.now(timezone.utc), # Issued at
+            'exp': datetime.now(timezone.utc) + timedelta(days=7) # Expiration
+        }
+        
+        token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+
+        return jsonify({
+            "message": "Login successful",
+            "token": token,
+            "user": { "id": str(user['_id']), "email": user['email'] }
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+
+# ============================================================================
+
+# ============================================================================
+# --- NEW: API ENDPOINTS FOR MONGODB CONVERSATIONS ---
+# ============================================================================
+
+@app.route('/api/conversations', methods=['GET'])
+def get_conversations():
+    """Get a list of recent conversation summaries"""
+    if db is None:
+        return jsonify({"error": "Database not connected"}), 500
+    
+    try:
+        sessions_cursor = db.sessions.find(
+            {"status": "completed"},
+            {"conversation": 0}
+        ).sort("start_time", -1).limit(50)
+        
+        sessions = []
+        for session in sessions_cursor:
+            session['_id'] = str(session['_id'])
+            sessions.append(session)
+            
+        return jsonify(sessions)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/conversations/<session_id>', methods=['GET'])
+def get_conversation_details(session_id):
+    """Get the full details of a single conversation"""
+    if db is None:
+        return jsonify({"error": "Database not connected"}), 500
+        
+    try:
+        session = db.sessions.find_one({"_id": ObjectId(session_id)})
+        if session:
+            session['_id'] = str(session['_id'])
+            return jsonify(session)
+        return jsonify({"error": "Session not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ============================================================================
 
 @app.route('/api/custom-room', methods=['POST'])
 def create_custom_room():
-    """
-    Create custom room with user-defined agents
-    
-    Expected JSON:
-    {
-        "agents": [
-            {"name": "Agent1", "prompt": "...", "voice": "aura-asteria-en"},
-            {"name": "Agent2", "prompt": "..."},
-            {"name": "Agent3", "prompt": "..."}
-        ],
-        "duration_minutes": 5 or 15
-    }
-    """
+    """Create custom room with user-defined agents"""
     try:
         data = request.json
         agents_data = data.get('agents', [])
         duration = data.get('duration_minutes', 5)
         
-        # Validate
         if len(agents_data) != 3:
             return jsonify({"error": "Exactly 3 agents required"}), 400
         
@@ -94,7 +182,6 @@ def create_custom_room():
                 "error": f"Duration must be {' or '.join(map(str, ALLOWED_DURATIONS))} minutes"
             }), 400
         
-        # Build custom room
         custom_room = {
             "name": "Custom Session",
             "description": "Your personalized AI conversation",
@@ -108,7 +195,7 @@ def create_custom_room():
                 "name": agent.get('name', f'Agent {idx + 1}').strip(),
                 "role": "custom",
                 "personality": "custom",
-                "system_prompt": agent.get('prompt', f'You are Agent {idx + 1}. Provide helpful, concise responses under 50 words.'),
+                "system_prompt": agent.get('prompt', f'You are Agent {idx + 1}.'),
                 "voice": agent.get('voice', DEFAULT_VOICES[idx])
             })
         
@@ -129,18 +216,13 @@ if __name__ == '__main__':
         print("🎭 AURA - Multi-Agent Voice Assistant")
         print("="*60)
         
-        # Validate configuration
         validate_config()
-        
-        # Initialize handlers
         initialize_handlers()
-        
-        # Register SocketIO events
         register_socket_events(socketio)
         
-        # MongoDB initialization (for future use)
-        # from database import initialize_mongodb
-        # initialize_mongodb()
+        # --- MODIFIED: MongoDB is now initialized on startup ---
+        from database import initialize_mongodb
+        initialize_mongodb()
         
         print("✅ All systems initialized")
         print("🌐 Server: http://0.0.0.0:5000")

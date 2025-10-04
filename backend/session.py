@@ -1,12 +1,13 @@
 """
 AURA Session Management
-Handles conversation sessions, context, and agent processing with streaming
+Handles conversation sessions, context, and agent processing with MongoDB
 """
 
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from config import *
+from database import db # <-- ADDED: Import the database object
 
 
 # ============================================================================
@@ -16,7 +17,7 @@ from config import *
 class SessionManager:
     """
     Manages conversation sessions with pseudo-streaming agent responses
-    Prepared for future MongoDB integration
+    and MongoDB persistence.
     """
     
     def __init__(self, room, duration_minutes):
@@ -24,29 +25,28 @@ class SessionManager:
         self.start_time = datetime.now()
         self.duration = timedelta(minutes=duration_minutes)
         self.end_time = self.start_time + self.duration
-        self.conversation_log = []
+        self.conversation_log = [] # Kept for in-memory context
         self.context = []
         
-        # File-based logging
-        self.log_dir = Path(LOGS_DIR)
-        self.log_dir.mkdir(exist_ok=True)
-        
-        # MongoDB (for future use)
-        # self.session_id = None
-        # self._create_mongodb_session()
+        # --- MODIFIED: MongoDB is now the primary session store ---
+        self.session_id = None
+        self._create_mongodb_session()
     
-    # def _create_mongodb_session(self):
-    #     """Create new session in MongoDB"""
-    #     from database import db
-    #     if db is not None:
-    #         session_doc = {
-    #             "room_name": self.room['name'],
-    #             "start_time": self.start_time,
-    #             "status": "active",
-    #             "conversation": []
-    #         }
-    #         result = db.sessions.insert_one(session_doc)
-    #         self.session_id = result.inserted_id
+    def _create_mongodb_session(self):
+        """Create a new session document in MongoDB"""
+        if db is not None:
+            try:
+                session_doc = {
+                    "room_name": self.room['name'],
+                    "start_time": self.start_time,
+                    "status": "active",
+                    "conversation": []
+                }
+                result = db.sessions.insert_one(session_doc)
+                self.session_id = result.inserted_id
+                print(f"📄 New MongoDB session created with ID: {self.session_id}")
+            except Exception as e:
+                print(f"❌ MongoDB session creation error: {e}")
     
     def is_expired(self):
         """Check if session time expired"""
@@ -59,12 +59,7 @@ class SessionManager:
     
     def log_interaction(self, role, content, agent_name=None):
         """
-        Log conversation interaction
-        
-        Args:
-            role: 'user' or 'assistant'
-            content: Message content
-            agent_name: Optional agent name
+        Log conversation interaction to memory and MongoDB in real-time.
         """
         log_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -76,50 +71,26 @@ class SessionManager:
         
         self.conversation_log.append(log_entry)
         
-        # MongoDB update (for future)
-        # if db and self.session_id:
-        #     db.sessions.update_one(
-        #         {"_id": self.session_id},
-        #         {"$push": {"conversation": log_entry}}
-        #     )
+        # --- MODIFIED: Push each message to the DB as it happens ---
+        if db is not None and self.session_id:
+            try:
+                db.sessions.update_one(
+                    {"_id": self.session_id},
+                    {"$push": {"conversation": log_entry}}
+                )
+            except Exception as e:
+                print(f"❌ MongoDB log update error: {e}")
     
     def get_voice_for_agent(self, agent, agent_index):
-        """
-        Get voice for agent with fallback
-        
-        Args:
-            agent: Agent config dict
-            agent_index: Agent position (0, 1, 2)
-            
-        Returns:
-            str: Valid Deepgram voice
-        """
+        """Get voice for agent with fallback"""
         voice = agent.get('voice', '').strip()
-        
-        # Validate voice
         if voice and voice.startswith('aura-'):
             return voice
-        
-        # Fallback to default
         return DEFAULT_VOICES[agent_index % len(DEFAULT_VOICES)]
     
     def process_agents_streaming(self, user_text, llm_handler, deepgram_handler, emit_callback):
         """
-        Process user input through agents with PSEUDO-STREAMING
-        
-        Flow:
-        1. Agent 1 thinks → generates audio → SEND TO FRONTEND (plays while Agent 2 thinks)
-        2. Agent 2 thinks → generates audio → SEND TO FRONTEND (plays while Agent 3 thinks)
-        3. Agent 3 thinks → generates audio → SEND TO FRONTEND
-        
-        Args:
-            user_text: User's transcribed input
-            llm_handler: CerebrasHandler instance
-            deepgram_handler: DeepgramHandler instance
-            emit_callback: SocketIO emit function
-            
-        Returns:
-            list: Agent responses [(name, text), ...]
+        Process user input through agents with PSEUDO-STREAMING.
         """
         agent_responses = []
         agents = self.room['agents']
@@ -129,21 +100,15 @@ class SessionManager:
         for idx, agent in enumerate(agents):
             agent_name = agent.get('name', f'Agent {idx + 1}')
             
-            # Notify: Agent is thinking
             emit_callback('agent_status', {
-                'agent': agent_name,
-                'status': 'thinking',
+                'agent': agent_name, 'status': 'thinking',
                 'message': f'{agent_name} is thinking...'
             })
             
-            # Build LLM messages
             messages = [{"role": "system", "content": agent['system_prompt']}]
-            
-            # Add recent context
             for ctx in self.context[-MAX_CONTEXT_MESSAGES:]:
                 messages.append(ctx)
             
-            # Add user input + previous agent responses
             if agent_responses:
                 context_text = f"User: {user_text}\n\nPrevious responses:\n"
                 for prev_name, prev_resp in agent_responses:
@@ -152,34 +117,18 @@ class SessionManager:
             else:
                 messages.append({"role": "user", "content": user_text})
             
-            # Get LLM response
             response = llm_handler.chat(messages)
-            
             if not response:
-                # Fallback response
                 response = f"I'm {agent_name}. Let me think about that."
                 print(f"⚠️ Using fallback for {agent_name}")
             
             agent_responses.append((agent_name, response))
             print(f"✅ {agent_name}: {response[:60]}...")
-            
-            # Log this response
             self.log_interaction('assistant', response, agent_name=agent_name)
             
-            # Get voice
             voice = self.get_voice_for_agent(agent, idx)
-            
-            # Notify: Agent is speaking
-            emit_callback('agent_status', {
-                'agent': agent_name,
-                'status': 'speaking',
-                'message': f'{agent_name} is speaking...'
-            })
-            
-            # Generate audio
             audio_b64 = deepgram_handler.synthesize(response, voice)
             
-            # IMMEDIATELY send to frontend (streaming)
             if audio_b64:
                 emit_callback('agent_response', {
                     'agent': agent_name,
@@ -194,7 +143,6 @@ class SessionManager:
             else:
                 print(f"⚠️ Audio generation failed for {agent_name}")
         
-        # Update context
         final_combined = " ".join([resp[1] for resp in agent_responses])
         self.context.extend([
             {"role": "user", "content": user_text},
@@ -204,30 +152,24 @@ class SessionManager:
         return agent_responses
     
     def save_log(self):
-        """Save conversation to file"""
-        timestamp = self.start_time.strftime("%Y%m%d_%H%M%S")
-        filename = self.log_dir / f"aura_{self.room['name'].replace(' ', '_')}_{timestamp}.json"
+        """Finalize the session log in MongoDB."""
         
-        session_data = {
-            "room": self.room['name'],
-            "start_time": self.start_time.isoformat(),
-            "end_time": datetime.now().isoformat(),
-            "duration_seconds": (datetime.now() - self.start_time).total_seconds(),
-            "conversation": self.conversation_log
-        }
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(session_data, f, indent=2, ensure_ascii=False)
-        
-        print(f"💾 Session saved: {filename}")
-        
-        # MongoDB version (for future)
-        # if db and self.session_id:
-        #     db.sessions.update_one(
-        #         {"_id": self.session_id},
-        #         {"$set": {
-        #             "end_time": datetime.now(),
-        #             "status": "completed",
-        #             "duration_seconds": session_data["duration_seconds"]
-        #         }}
-        #     )
+        # --- MODIFIED: This function now updates the DB record instead of writing a file ---
+        if db is not None and self.session_id:
+            try:
+                end_time = datetime.now()
+                duration = (end_time - self.start_time).total_seconds()
+                
+                db.sessions.update_one(
+                    {"_id": self.session_id},
+                    {"$set": {
+                        "end_time": end_time,
+                        "status": "completed",
+                        "duration_seconds": duration
+                    }}
+                )
+                print(f"💾 Session {self.session_id} finalized in MongoDB.")
+            except Exception as e:
+                print(f"❌ MongoDB finalization error: {e}")
+        else:
+            print("⚠️ MongoDB not connected. Could not finalize session in DB.")

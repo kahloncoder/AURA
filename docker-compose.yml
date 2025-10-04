@@ -1,0 +1,42 @@
+
+
+services:
+  # Backend Service (Python/Flask)
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/logs
+    env_file:
+      - ./backend/.env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/aura_database
+    depends_on:
+      - mongo
+    restart: always
+
+  # Frontend Service (React Dev Server)
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:8080"
+    volumes:
+      # Mount the frontend source code for hot-reloading
+      - ./frontend:/app
+      # This prevents the local node_modules from overwriting the container's
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: always
+
+  # MongoDB Service
+  mongo:
+    image: mongo:latest
+    volumes:
+      - mongo-data:/data/db
+    restart: always
+
+volumes:
+  mongo-data:

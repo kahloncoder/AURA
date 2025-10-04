@@ -62,8 +62,8 @@ LOGS_DIR = "logs"
 # MONGODB (for future use)
 # ============================================================================
 
-# MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-# MONGO_DB_NAME = 'aura_database'
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+MONGO_DB_NAME = 'aura_database' # <-- ADD THIS LINE
 
 # ============================================================================
 # VALIDATION
