@@ -1,344 +1,276 @@
-# 🎭 AURA - Multi-Agent Voice Assistant
+# 🎭 AURA: Multi-Agent Voice Assistant for Collective Intelligence
 
-A sophisticated console-based voice assistant that uses multiple AI agents with different personalities to provide comprehensive, multi-perspective responses to your questions.
+> **Live Demo:** [🌐 aura.kahlonai.com](https://aura.kahlonai.com)  
+> **Built for FutureStack GenAI Hackathon** — powered by **Cerebras**, **Meta Llama**, and **Docker**
 
-## 🌟 Features
+---
 
-- **Multi-Agent Architecture**: 3 specialized agents per scenario, each with unique personalities
-- **Voice Interface**: Natural voice input/output using Deepgram
-- **Configurable Scenarios**: Easy-to-customize rooms for different use cases
-- **Session Management**: Timed sessions with automatic conversation logging
-- **Context-Aware**: Maintains conversation context up to 65k tokens
-- **Sequential Processing**: User input flows through all agents for comprehensive responses
+## 🧠 Overview
 
-## 🏗️ Architecture
+**AURA** is an AI-powered **multi-agent voice assistant** that simulates collaborative human reasoning — three distinct AI personas debate, refine, and combine their perspectives to deliver the most balanced and insightful answer possible.
+
+It's not just a voice assistant — it's a **panel of AI experts** who think together.
+
+Built using:
+- **Cerebras Cloud API** for ultra-fast inference with **Llama 3.3 (70B)**
+- **Deepgram** for real-time voice input/output
+- **Flask + React + Socket.IO** for seamless real-time communication
+- **Docker Compose** for one-command deployment across backend, frontend, and MongoDB
+
+---
+
+## 🚀 Why AURA?
+
+Modern AI assistants often mimic a single personality — logical, empathetic, or creative — but never *all three*.  
+AURA bridges that gap with **multi-agent orchestration**, giving users:
+- Multiple viewpoints instead of a single static answer  
+- Collaborative reasoning between specialized agents  
+- Immersive voice-based interactions  
+- Persistent context awareness & session memory  
+
+This makes AURA ideal for:
+- Brainstorming new ideas  
+- Strategy & business discussions  
+- Emotional and empathetic support scenarios  
+- Educational simulations  
+
+---
+
+## 🌍 Tech Stack
+
+| Layer | Technology | Description |
+|-------|-------------|-------------|
+| 🧠 LLM | **Cerebras Cloud (Llama 3.3 70B)** | Core intelligence for all agents |
+| 🔊 Speech | **Deepgram STT + TTS** | Real-time voice transcription & synthesis |
+| ⚙️ Backend | **Flask + Socket.IO** | Orchestrates agent pipeline & sessions |
+| 💻 Frontend | **React** | Interactive dashboard for voice sessions |
+| 🐋 Deployment | **Docker Compose** | Scalable multi-service setup |
+| 🗄️ Database | **MongoDB (optional)** | Persistent storage for conversations |
+
+---
+
+## ⚡ Hackathon Relevance
+
+| Sponsor | Integration | Hack Value |
+|----------|--------------|-------------|
+| **Cerebras** 🧠 | Used for fast, large-context inference (Llama 3.3 70B) with multi-agent chaining | Demonstrates advanced prompt routing and conversational reasoning |
+| **Meta** 💬 | Leverages open-source **Llama models** for personality-driven agents | Showcases generative dialogue diversity |
+| **Docker** 🐋 | Full **Docker Compose** setup (frontend + backend + MongoDB) | Enables reproducible, cloud-native deployment in one command |
+
+---
+
+## 💡 Core Innovation
+
+### 🎙️ Multi-Agent Architecture
+
+AURA features **three distinct agents** per session, each with its own personality and reasoning pattern.
 
 ```
-User Input (Voice)
-    ↓
-Speech-to-Text (Deepgram)
-    ↓
-Agent 1 (Processes & Responds)
-    ↓
-Agent 2 (Processes User + Agent 1)
-    ↓
-Agent 3 (Processes User + Agent 1 + Agent 2)
-    ↓
-Combined Response
-    ↓
-Text-to-Speech (Deepgram)
-    ↓
-Audio Output
+User (Voice Input)
+        ↓
+  Deepgram STT
+        ↓
+Agent 1 → Agent 2 → Agent 3 (Cerebras API)
+        ↓
+Consensus Generation
+        ↓
+Deepgram TTS (Voice Output)
 ```
 
-## 📋 Prerequisites
+Each agent builds on the last, providing a **multi-perspective synthesis** of logic, emotion, and creativity.
 
-- Python 3.11 or higher
-- Microphone for voice input
-- Speakers/headphones for audio output
+---
+
+### 🧩 Architecture Diagram
+
+```
+            ┌──────────────────────────┐
+            │        Frontend          │
+            │ (React + Socket.IO UI)   │
+            └────────────┬─────────────┘
+                         │
+                         ▼
+              ┌──────────────────┐
+              │     Flask API    │
+              │ SocketIO Server  │
+              └───────┬──────────┘
+                      │
+         ┌────────────┴─────────────┐
+         │  Audio + STT (Deepgram)  │
+         │  LLM Agents (Cerebras)   │
+         │  Session Logging (JSON)  │
+         └────────────┬─────────────┘
+                      │
+                      ▼
+                 MongoDB (optional)
+```
+
+---
+
+## 🧰 Features
+
+- 🎙 **Voice-driven interaction** (no typing needed)
+- 🧩 **3-Agent reasoning** (logic + emotion + creativity)
+- 🧠 **Context retention** for multi-turn dialogue
+- 🕒 **Timed sessions** with automatic logging
+- 🗃 **Session logs saved as JSON**
+- 🧍‍♂️ **Personality profiles** for agents (editable in `rooms.json`)
+- 🐳 **One-command Docker setup**
+
+---
+
+## 🛠 Setup Guide
+
+### 🔧 Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Docker & Docker Compose
 - API Keys:
-  - [Deepgram API Key](https://console.deepgram.com/)
-  - [Cerebras Cloud API Key](https://cloud.cerebras.ai/)
+  - [Deepgram](https://console.deepgram.com/)
+  - [Cerebras Cloud](https://cloud.cerebras.ai/)
 
-## 🚀 Quick Start
+---
 
-### 1. Clone or Download the Project
-
-```bash
-# Create project directory
-mkdir aura-assistant
-cd aura-assistant
-```
-
-### 2. Install Dependencies
+### 🐳 Quick Start (Docker Compose)
 
 ```bash
-# Install Python packages
-pip install -r requirements.txt
+# Clone the repo
+git clone https://github.com/yourusername/aura.git
+cd aura
+
+# Start all services (frontend, backend, mongo)
+docker-compose up --build
 ```
 
-### 3. Configure API Keys
+✅ **Backend** → http://localhost:5000  
+✅ **Frontend** → http://localhost:3000  
+✅ **Live Demo** → [aura.kahlonai.com](https://aura.kahlonai.com)
 
-```bash
-# Copy the example environment file
-cp .env.example .env
+---
 
-# Edit .env and add your API keys
-# DEEPGRAM_API_KEY=your_actual_key_here
-# CEREBRAS_API_KEY=your_actual_key_here
-```
-
-### 4. Run AURA
-
-```bash
-python main.py
-```
-
-## 🎮 How to Use
-
-1. **Select a Scenario**: Choose from available rooms (Business, Career, Technical, etc.)
-2. **Voice Input**: 
-   - Press and HOLD Enter to start recording
-   - Speak your question
-   - Press Enter again to stop recording
-3. **Agent Processing**: Watch as 3 agents process your input sequentially
-4. **Hear Response**: AURA speaks the combined response
-5. **Continue Conversation**: Repeat until session ends or you say "exit"
-
-### Voice Commands
-
-- `exit`, `quit`, `goodbye`, `bye` - End the session
-
-## 📁 Project Structure
-
-```
-aura-assistant/
-├── main.py              # Main application
-├── requirements.txt     # Python dependencies
-├── .env                # API keys (create from .env.example)
-├── .env.example        # Environment template
-├── rooms.json          # Agent configurations
-├── logs/               # Session logs (auto-created)
-│   └── aura_*.json    # Individual session files
-└── README.md          # This file
-```
-
-## ⚙️ Configuration
-
-### rooms.json Structure
-
-Each room defines a conversation scenario:
-
-```json
-{
-  "name": "Scenario Name",
-  "description": "What this scenario is for",
-  "session_duration_minutes": 5,
-  "greeting": "Initial message to user",
-  "agents": [
-    {
-      "name": "Agent Name",
-      "role": "agent_function",
-      "personality": "personality_type",
-      "system_prompt": "Detailed instructions for this agent",
-      "temperature": 0.5,
-      "voice": "aura-voice-name"
-    }
-  ]
-}
-```
-
-### Adding New Scenarios
-
-1. Open `rooms.json`
-2. Copy an existing room structure
-3. Modify agent personalities and prompts
-4. Save and restart AURA
-
-### Agent Personality Types
-
-- **analytical_direct**: Data-driven, no nonsense
-- **bold_provocative**: Challenges assumptions
-- **practical_friendly**: Warm but realistic
-- **wise_straightforward**: Experience-based advice
-- **blunt_factual**: Raw truth, no sugar coating
-- **chaotic_creative**: Wild, unconventional ideas
-- **empathetic_gentle**: Understanding and supportive
-
-## 🐳 Docker Deployment
-
-### Build Docker Image
-
-```bash
-# Create Dockerfile
-cat > Dockerfile << 'EOF'
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies for audio
-RUN apt-get update && apt-get install -y \
-    portaudio19-dev \
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application files
-COPY main.py .
-COPY rooms.json .
-
-# Create logs directory
-RUN mkdir -p logs
-
-# Run the application
-CMD ["python", "main.py"]
-EOF
-
-# Build image
-docker build -t aura-assistant .
-```
-
-### Run with Docker
-
-```bash
-# Run container with environment variables
-docker run -it --rm \
-  --device /dev/snd \
-  -e DEEPGRAM_API_KEY=your_key \
-  -e CEREBRAS_API_KEY=your_key \
-  -v $(pwd)/logs:/app/logs \
-  aura-assistant
-```
-
-### Docker Compose
+### 🧩 Docker Compose Configuration
 
 ```yaml
-# docker-compose.yml
-version: '3.8'
-
 services:
-  aura:
-    build: .
-    stdin_open: true
-    tty: true
-    devices:
-      - /dev/snd:/dev/snd
-    environment:
-      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
-      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+  backend:
+    build: ./backend
+    ports: ["5000:5000"]
+    env_file: ./backend/.env
+    depends_on: [mongo]
+    restart: always
+
+  frontend:
+    build: ./frontend
+    ports: ["3000:8080"]
+    depends_on: [backend]
+    restart: always
+
+  mongo:
+    image: mongo:latest
     volumes:
-      - ./logs:/app/logs
-      - ./rooms.json:/app/rooms.json
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
 ```
 
-Run with: `docker-compose up`
+---
 
-## 📊 Session Logs
+## 🎮 How It Works
 
-Every conversation is automatically saved to `logs/` directory:
+1. 🎤 **User speaks a query**
+2. 🧏 **Deepgram converts it to text**
+3. 🧠 **Agent 1 (Analytical) responds**
+4. 💬 **Agent 2 (Empathetic) refines**
+5. 💡 **Agent 3 (Creative) finalizes the collective response**
+6. 🔊 **AURA speaks the final answer**
+
+Each session log is auto-saved under `/backend/logs/`.
+
+---
+
+## 🎨 UX & Design
+
+- Modern minimal UI built in React
+- Real-time transcription view
+- Visual agent status indicators (Thinking → Speaking → Complete)
+- Session summary at end
+- Dark/light theme ready
+
+---
+
+## 📊 Example Session Log
 
 ```json
 {
   "room": "Business Strategy Discussion",
-  "start_time": "2025-10-03T10:30:00",
-  "end_time": "2025-10-03T10:35:00",
-  "duration_seconds": 300,
+  "start_time": "2025-10-04T14:37:41",
   "conversation": [
-    {
-      "timestamp": "2025-10-03T10:30:15",
-      "role": "user",
-      "content": "Should we expand to new markets?"
-    },
-    {
-      "timestamp": "2025-10-03T10:30:25",
-      "role": "assistant",
-      "content": "Combined agent response..."
-    }
+    {"role": "user", "content": "Should we expand into Europe?"},
+    {"role": "agent_1", "content": "Let's analyze the market data..."},
+    {"role": "agent_2", "content": "We should also consider cultural adaptation..."},
+    {"role": "agent_3", "content": "A bold but strategic move could involve..."}
   ]
 }
 ```
 
-## 🔧 Troubleshooting
+---
 
-### Audio Issues
+## 🔬 Technical Highlights
 
-```bash
-# Test microphone
-python -c "import sounddevice as sd; print(sd.query_devices())"
-
-# If no devices found, check system audio settings
-```
-
-### API Errors
-
-- **Deepgram**: Verify API key at https://console.deepgram.com/
-- **Cerebras**: Check quota at https://cloud.cerebras.ai/
-
-### Import Errors
-
-```bash
-# Reinstall dependencies
-pip install --upgrade -r requirements.txt
-```
-
-## 🎯 Customization Tips
-
-### Adjust Agent Responses
-
-- **Shorter responses**: Reduce `max_tokens` in code (currently 200)
-- **More creative**: Increase `temperature` (0.0-1.0)
-- **More focused**: Decrease `temperature`
-
-### Change Session Duration
-
-Edit `session_duration_minutes` in rooms.json:
-- Default: 5 minutes
-- Extended: 15 minutes
-- Custom: Any value in minutes
-
-### Modify Context Window
-
-In `main.py`, adjust context retention:
-```python
-# Keep last N messages (currently 6)
-for ctx in self.context[-6:]:
-```
-
-## 🔒 Security Notes
-
-- **Never commit `.env`** to version control
-- Keep API keys secure
-- Logs may contain sensitive conversation data
-- Review logs before sharing
-
-## 📝 Best Practices
-
-1. **Clear Questions**: Ask specific, focused questions
-2. **Natural Speech**: Speak naturally, don't rush
-3. **Wait for Processing**: Let all agents complete before next input
-4. **Review Logs**: Check saved conversations for insights
-5. **Experiment with Rooms**: Try different scenarios for different needs
-
-## 🚧 Limitations
-
-- **Context Limit**: 65k tokens (~50k words)
-- **Session Time**: Max 15 minutes per session
-- **Sequential Processing**: Agents process one at a time
-- **Voice Only**: No visual interface
-- **English Only**: Currently configured for English
-
-## 🔮 Future Enhancements
-
-- [ ] Real-time interruption support
-- [ ] Multi-language support
-- [ ] Visual dashboard
-- [ ] Agent personality customization UI
-- [ ] Cloud deployment templates
-- [ ] Mobile app integration
-- [ ] Conversation analytics
-
-## 📄 License
-
-This project is provided as-is for educational and commercial use.
-
-## 🤝 Support
-
-For issues or questions:
-1. Check logs in `logs/` directory
-2. Review configuration in `rooms.json`
-3. Verify API keys in `.env`
-4. Test audio devices
-
-## 🎉 Credits
-
-Built with:
-- **Deepgram** - Speech-to-Text & Text-to-Speech
-- **Cerebras Cloud** - Llama 3.3 70B LLM
-- **Python** - Core programming language
+- Sequential agent reasoning pipeline
+- 65k-token context window for complex dialogue
+- Automatic voice session handling
+- Custom personality definition via JSON
+- Full-stack SocketIO pipeline for real-time audio streaming
 
 ---
 
-**Made with ❤️ for conversational AI**
+## 🎯 Future Enhancements
+
+- 🌐 Multi-language support
+- 🧠 Adaptive agent personalities (based on user tone)
+- 🧩 Graph-based reasoning visualization
+- 📈 Voice analytics dashboard
+- 📱 Mobile-first responsive design
+
+---
+
+## 🏆 Hackathon Evaluation Alignment
+
+| Criteria | AURA Strength |
+|----------|---------------|
+| **Potential Impact** | Introduces multi-agent reasoning for deeper AI-human collaboration |
+| **Creativity & Originality** | Unique fusion of diverse AI personas interacting live |
+| **Technical Implementation** | Advanced Cerebras API use, STT+TTS pipeline, real-time streaming |
+| **Learning & Growth** | Built full-stack Dockerized AI orchestration from scratch |
+| **Aesthetics & UX** | Intuitive, modern, and conversational web UI |
+| **Presentation & Communication** | Clear live demo, session logs, and detailed documentation |
+
+---
+
+## 👨‍💻 Team
+
+| Name | Role | Focus |
+|------|------|-------|
+| **Tarandeep Singh** | Developer | AI, Backend, Docker, Full-stack integration |
+
+---
+
+## 📜 License
+
+This project is open-source and free for educational and research use.
+
+---
+
+## ❤️ Built With
+
+- [Cerebras Cloud API](https://cloud.cerebras.ai/)
+- [Meta Llama 3.3 70B](https://llama.meta.com/)
+- [Deepgram STT/TTS](https://deepgram.com/)
+- Flask + React + Docker Compose
+
+---
+
+**AURA isn't just an assistant — it's a conversation between minds.**  
+**Experience it live →** [aura.kahlonai.com](https://aura.kahlonai.com)
