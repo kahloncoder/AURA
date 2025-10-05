@@ -45,7 +45,7 @@ This makes AURA ideal for:
 | ⚙️ Backend | **Flask + Socket.IO** | Orchestrates agent pipeline & sessions |
 | 💻 Frontend | **React** | Interactive dashboard for voice sessions |
 | 🐋 Deployment | **Docker Compose** | Scalable multi-service setup |
-| 🗄️ Database | **MongoDB (optional)** | Persistent storage for conversations |
+| 🗄️ Database | **MongoDB** | Persistent storage for conversations |
 
 ---
 
@@ -102,7 +102,7 @@ Each agent builds on the last, providing a **multi-perspective synthesis** of lo
          └────────────┬─────────────┘
                       │
                       ▼
-                 MongoDB (optional)
+                 MongoDB 
 ```
 
 ---
@@ -183,9 +183,9 @@ volumes:
 3. 🧠 **Agent 1 (Analytical) responds**
 4. 💬 **Agent 2 (Empathetic) refines**
 5. 💡 **Agent 3 (Creative) finalizes the collective response**
-6. 🔊 **AURA speaks the final answer**
+6. 🔊 **Agent speaks the answers**
 
-Each session log is auto-saved under `/backend/logs/`.
+Each session log is auto-saved.
 
 ---
 
@@ -195,7 +195,6 @@ Each session log is auto-saved under `/backend/logs/`.
 - Real-time transcription view
 - Visual agent status indicators (Thinking → Speaking → Complete)
 - Session summary at end
-- Dark/light theme ready
 
 ---
 
