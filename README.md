@@ -1,4 +1,4 @@
-# 🎭 AURA: Multi-Agent Voice Assistant for Collective Intelligence
+#  AURA: Multi-Agent Voice Assistant for Collective Intelligence
 
 > **Live Demo:** [🌐 aura.kahlonai.com](https://aura.kahlonai.com)  
 > **Built for FutureStack GenAI Hackathon** — powered by **Cerebras**, **Meta Llama**, and **Docker**
